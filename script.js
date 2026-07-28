@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "use strict";
 
     const CONFIG = {
-        appsScriptUrl:      "https://script.google.com/macros/s/AKfycbwuqwzGkZbNWADgfnAK9W9RjHFKd3cKuMd2ootHpcPcGPZA2e1Lme-lfNGIYkzhpu1Q/exec",
+        appsScriptUrl:      "https://script.google.com/macros/s/AKfycbxDemQKaqUnDlXnr0VEt2pW98wg9CNnjIF7jueLFdtLRTSeeJayppUOQFVJOaYHk4EM/exec",
         enableGoogleSheets: true,
         catalogueUrl:       "https://wa.me/c/919896772868",
         instagramUrl:       "https://www.instagram.com/fouji_beat_coffee_",
