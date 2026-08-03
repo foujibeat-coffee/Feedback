@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
         initRecommend();
         initFormSubmit();
         loadReviewsTicker();
+        initTickerDrag();
     }
 
     /* ── LINKS ── */
@@ -242,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 80);
         // Re-populate success ticker with latest reviews
         loadReviewsTicker();
+        initTickerDrag();
     }
 
     /* ════════════════════════════════════════════
@@ -284,14 +286,54 @@ document.addEventListener("DOMContentLoaded", () => {
         const score = avg.toFixed(1);
         const full  = Math.round(avg);
         const stars = "★".repeat(full) + "☆".repeat(5 - full);
-        const el    = {
-            stars: document.getElementById("avgStars"),
-            score: document.getElementById("avgScore"),
-            count: document.getElementById("avgCount"),
-        };
-        if (el.stars) el.stars.textContent = stars;
-        if (el.score) el.score.textContent = score + "/5";
-        if (el.count) el.count.textContent = "(" + reviews.length + " review" + (reviews.length !== 1 ? "s" : "") + ")";
+
+        // Update ticker header avg
+        const avgStars = document.getElementById("avgStars");
+        const avgScore = document.getElementById("avgScore");
+        const avgCount = document.getElementById("avgCount");
+        if (avgStars) avgStars.textContent = stars;
+        if (avgScore) avgScore.textContent = score + "/5";
+        if (avgCount) avgCount.textContent = "(" + reviews.length + " review" + (reviews.length !== 1 ? "s" : "") + ")";
+
+        // Update trust card (4.9/5 block)
+        const trustScore = document.getElementById("trustAvgScore");
+        if (trustScore) trustScore.textContent = score + " / 5";
+    }
+
+    /* ── DRAG TO SCROLL TICKER ── */
+    function initTickerDrag() {
+        document.querySelectorAll(".ticker-wrap").forEach(wrap => {
+            let isDown  = false;
+            let startX  = 0;
+            let scrollL = 0;
+
+            wrap.addEventListener("mousedown", e => {
+                isDown  = true;
+                wrap.classList.add("dragging");
+                startX  = e.pageX - wrap.offsetLeft;
+                scrollL = wrap.scrollLeft;
+            });
+            wrap.addEventListener("mouseleave", () => { isDown = false; wrap.classList.remove("dragging"); });
+            wrap.addEventListener("mouseup",    () => { isDown = false; wrap.classList.remove("dragging"); });
+            wrap.addEventListener("mousemove",  e => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x    = e.pageX - wrap.offsetLeft;
+                const walk = (x - startX) * 1.5;
+                wrap.scrollLeft = scrollL - walk;
+            });
+
+            // Touch support
+            wrap.addEventListener("touchstart", e => {
+                startX  = e.touches[0].pageX - wrap.offsetLeft;
+                scrollL = wrap.scrollLeft;
+            }, { passive: true });
+            wrap.addEventListener("touchmove", e => {
+                const x    = e.touches[0].pageX - wrap.offsetLeft;
+                const walk = (x - startX) * 1.5;
+                wrap.scrollLeft = scrollL - walk;
+            }, { passive: true });
+        });
     }
 
     function populateSuccessTicker(cards, duration) {
