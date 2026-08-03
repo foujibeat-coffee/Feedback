@@ -909,28 +909,51 @@ input[readonly] {
 
 .reviews-avg-stars {
   font-size: 0.75rem;
-  color: var(--gold);
+  color: var(--gold) !important;
   letter-spacing: 1px;
 }
 
 .reviews-avg-score {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
 }
 
 .reviews-avg-count {
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.50);
-  font-weight: 400;
+  color: rgba(255,255,255,0.70) !important;
+  font-weight: 500;
 }
 
 .ticker-wrap {
   width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ticker-wrap::-webkit-scrollbar { display: none; }
+.ticker-wrap.dragging { cursor: grabbing; }
+.ticker-wrap.dragging .ticker-track { animation-play-state: paused; }
+/* keep original selector for next rule */
+.ticker-wrap-DUMMY {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 22px;
-  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;       /* Firefox */
+  cursor: grab;
+}
+
+.ticker-wrap::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+.ticker-wrap:active { cursor: grabbing; }
+
+/* Remove fade mask so scrolled cards are fully visible */
+.ticker-wrap.user-scrolling {
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 
 .ticker-track {
@@ -939,10 +962,11 @@ input[readonly] {
   width: max-content;
   animation: tickerScroll 30s linear infinite;
   will-change: transform;
+  padding: 0 16px;
 }
 
-.ticker-track:hover,
-.ticker-track:active { animation-play-state: paused; }
+.ticker-track:hover { animation-play-state: paused; }
+.ticker-track.dragging { animation-play-state: paused; cursor: grabbing; }
 
 @keyframes tickerScroll {
   0%   { transform: translateX(0); }
@@ -1054,10 +1078,18 @@ input[readonly] {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(200,155,60,0.30);
+  background: rgba(200,155,60,0.20);
+  border: 1.5px solid rgba(200,155,60,0.60);
   border-radius: 999px;
-  padding: 5px 14px;
+  padding: 6px 16px;
+}
+
+.reviews-avg * {
+  color: #FFFFFF !important;
+}
+
+.reviews-avg .reviews-avg-stars {
+  color: var(--gold) !important;
 }
 
 .reviews-avg-stars {
@@ -1240,6 +1272,7 @@ footer > .container > p {
   font-size: 0.8rem;
   color: rgba(255,255,255,0.55);
   margin-bottom: 18px;
+  text-align: center;
 }
 
 /* Address block */
@@ -1251,7 +1284,7 @@ footer > .container > p {
   color: rgba(255,255,255,0.65);
   line-height: 1.7;
   margin: 0 auto 22px;
-  text-align: left;
+  text-align: center;
   max-width: 260px;
   justify-content: center;
 }
