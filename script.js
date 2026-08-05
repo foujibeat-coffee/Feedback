@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
         initRecommend();
         initFormSubmit();
         loadReviewsTicker();
-        initTickerDrag();
     }
 
     /* ── LINKS ── */
@@ -243,178 +242,40 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 80);
         // Re-populate success ticker with latest reviews
         loadReviewsTicker();
-        initTickerDrag();
     }
 
     /* ════════════════════════════════════════════
        REVIEWS TICKER
-       - Fetches ONLY from Google Sheet
-       - JS requestAnimationFrame infinite loop
-       - Smooth drag: touch + mouse, no jump
+       Seeds show instantly from HTML.
+       Live data fetched silently in background
+       and replaces seeds when ready.
     ════════════════════════════════════════════ */
-
-    // Per-ticker state
-    const tickers = {};
-
     async function loadReviewsTicker() {
+        // Seeds already visible in HTML — fetch live data silently
         try {
             const res  = await fetch(CONFIG.appsScriptUrl + "?action=reviews");
             const data = await res.json();
-
-            if (!data.reviews || data.reviews.length === 0) {
-                document.getElementById("tickerTrack").innerHTML =
-                    '<div class="ticker-empty">Be the first to share your experience!</div>';
-                return;
+            if (data.reviews && data.reviews.length > 0) {
+                renderTickers(data.reviews);
             }
-
-            renderTickers(data.reviews);
-            updateAvgRating(data.reviews);
-
         } catch (err) {
-            console.warn("Ticker error:", err);
+            // Seeds stay visible — no error shown to user
+            console.warn("Ticker background fetch:", err);
         }
     }
 
     function renderTickers(reviews) {
-        const cards = reviews.map(r => buildReviewCard(r)).join("");
+        const cards    = reviews.map(r => buildReviewCard(r)).join("");
+        const duration = Math.max(20, reviews.length * 6) + "s";
 
-        // Build both tickers
-        setupTicker("tickerTrack",       cards, reviews.length);
-        setupTicker("successTickerTrack", cards, reviews.length);
-    }
-
-    function setupTicker(trackId, cards, count) {
-        const track = document.getElementById(trackId);
-        if (!track) return;
-
-        const wrap = track.parentElement;
-
-        // Inject cards — tripled for seamless loop
-        track.innerHTML = cards + cards + cards;
-
-        // Stop any existing animation for this ticker
-        if (tickers[trackId]) {
-            cancelAnimationFrame(tickers[trackId].raf);
+        const mainTrack = document.getElementById("tickerTrack");
+        if (mainTrack) {
+            mainTrack.innerHTML = cards + cards;
+            mainTrack.style.animationDuration = duration;
         }
 
-        const SPEED  = 0.6; // px per frame
-        let offset   = 0;
-        let paused   = false;
-        let dragging = false;
-        let dragStartX   = 0;
-        let dragStartOff = 0;
-        let lastX    = 0;
-        let velocity = 0;
-        let lastTime = performance.now();
-
-        function getOneSetWidth() {
-            // Width of one set of cards (1/3 of total)
-            return track.scrollWidth / 3;
-        }
-
-        function tick(now) {
-            const dt = Math.min(now - lastTime, 50); // cap delta
-            lastTime = now;
-
-            if (!dragging && !paused) {
-                offset += SPEED * (dt / 16.67);
-                // Apply momentum from drag release
-                if (Math.abs(velocity) > 0.1) {
-                    offset   += velocity * (dt / 16.67);
-                    velocity *= 0.94; // friction
-                } else {
-                    velocity = 0;
-                }
-            }
-
-            // Seamless loop — reset when one full set scrolled
-            const setW = getOneSetWidth();
-            if (setW > 0 && offset >= setW) {
-                offset -= setW;
-            }
-            if (offset < 0) {
-                offset += setW;
-            }
-
-            track.style.transform = `translateX(${-offset}px)`;
-            tickers[trackId].raf = requestAnimationFrame(tick);
-        }
-
-        // ── MOUSE DRAG ──
-        wrap.addEventListener("mousedown", e => {
-            dragging     = true;
-            dragStartX   = e.clientX;
-            dragStartOff = offset;
-            velocity     = 0;
-            lastX        = e.clientX;
-            wrap.classList.add("dragging");
-            e.preventDefault();
-        });
-
-        window.addEventListener("mousemove", e => {
-            if (!dragging) return;
-            const dx = e.clientX - lastX;
-            velocity  = -dx * 0.5;
-            offset    = dragStartOff - (e.clientX - dragStartX);
-            lastX     = e.clientX;
-        });
-
-        window.addEventListener("mouseup", () => {
-            if (!dragging) return;
-            dragging = false;
-            wrap.classList.remove("dragging");
-        });
-
-        // ── TOUCH DRAG ──
-        wrap.addEventListener("touchstart", e => {
-            dragging     = true;
-            dragStartX   = e.touches[0].clientX;
-            dragStartOff = offset;
-            velocity     = 0;
-            lastX        = e.touches[0].clientX;
-        }, { passive: true });
-
-        wrap.addEventListener("touchmove", e => {
-            if (!dragging) return;
-            const dx = e.touches[0].clientX - lastX;
-            velocity  = -dx * 0.5;
-            offset    = dragStartOff - (e.touches[0].clientX - dragStartX);
-            lastX     = e.touches[0].clientX;
-        }, { passive: true });
-
-        wrap.addEventListener("touchend", () => {
-            dragging = false;
-        });
-
-        // ── HOVER PAUSE ──
-        wrap.addEventListener("mouseenter", () => { if (!dragging) paused = true; });
-        wrap.addEventListener("mouseleave", () => { paused = false; });
-
-        // Start loop
-        tickers[trackId] = { raf: requestAnimationFrame(tick) };
-    }
-
-    function buildReviewCard(r) {
-        const stars   = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
-        const score   = r.rating + ".0/5";
-        const name    = escHtml(r.name    || "Customer");
-        const product = escHtml(r.product || "");
-        const comment = escHtml(r.feedback || "");
-        return \`<div class="review-card">
-            <div class="review-card-top">
-                <span class="review-name">\${name}</span>
-                <div class="review-rating-wrap">
-                    <span class="review-stars">\${stars}</span>
-                    <span class="review-score">\${score}</span>
-                </div>
-            </div>
-            \${product ? \`<p class="review-product">\${product}</p>\` : ""}
-            \${comment ? \`<p class="review-comment">"\${comment}"</p>\` : ""}
-        </div>\`;
-    }
-
-    function populateSuccessTicker(cards, duration) {
-        // Legacy — now handled by setupTicker
+        populateSuccessTicker(cards, duration);
+        updateAvgRating(reviews);
     }
 
     function updateAvgRating(reviews) {
@@ -423,16 +284,43 @@ document.addEventListener("DOMContentLoaded", () => {
         const score = avg.toFixed(1);
         const full  = Math.round(avg);
         const stars = "★".repeat(full) + "☆".repeat(5 - full);
+        const el    = {
+            stars: document.getElementById("avgStars"),
+            score: document.getElementById("avgScore"),
+            count: document.getElementById("avgCount"),
+        };
+        if (el.stars) el.stars.textContent = stars;
+        if (el.score) el.score.textContent = score + "/5";
+        if (el.count) el.count.textContent = "(" + reviews.length + " review" + (reviews.length !== 1 ? "s" : "") + ")";
+    }
 
-        const avgStars = document.getElementById("avgStars");
-        const avgScore = document.getElementById("avgScore");
-        const avgCount = document.getElementById("avgCount");
-        if (avgStars) avgStars.textContent = stars;
-        if (avgScore) avgScore.textContent = score + "/5";
-        if (avgCount) avgCount.textContent = "(" + reviews.length + " review" + (reviews.length !== 1 ? "s" : "") + ")";
+    function populateSuccessTicker(cards, duration) {
+        const t = document.getElementById("successTickerTrack");
+        if (t) {
+            t.innerHTML = cards + cards;
+            t.style.animationDuration = duration;
+        }
+    }
 
-        const trustScore = document.getElementById("trustAvgScore");
-        if (trustScore) trustScore.textContent = score + " / 5";
+    function buildReviewCard(r) {
+        const stars     = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+        const score     = r.rating + ".0/5";
+        const name      = escHtml(r.name || "Customer");
+        const product   = escHtml(r.product || "");
+        const comment   = escHtml(r.feedback || "");
+
+        return `
+        <div class="review-card">
+            <div class="review-card-top">
+                <span class="review-name">${name}</span>
+                <div class="review-rating-wrap">
+                    <span class="review-stars">${stars}</span>
+                    <span class="review-score">${score}</span>
+                </div>
+            </div>
+            ${product ? `<p class="review-product">${product}</p>` : ""}
+            ${comment ? `<p class="review-comment">"${comment}"</p>` : ""}
+        </div>`;
     }
 
     function escHtml(str) {
@@ -442,5 +330,31 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
     }
+
+    /* ── TOAST ── */
+    function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+
+    /* ── HELPERS ── */
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function getBrowser(ua) {
+        if (ua.includes("Edg"))     return "Edge";
+        if (ua.includes("OPR"))     return "Opera";
+        if (ua.includes("Chrome"))  return "Chrome";
+        if (ua.includes("Firefox")) return "Firefox";
+        if (ua.includes("Safari"))  return "Safari";
+        return "Other";
+    }
+    function getDevice(ua) {
+        if (/Mobi|Android/i.test(ua)) return "Mobile";
+        if (/Tablet|iPad/i.test(ua))  return "Tablet";
+        return "Desktop";
+    }
+
     init();
 });
